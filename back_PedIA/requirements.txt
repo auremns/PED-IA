@@ -1,0 +1,10 @@
+flask
+rdflib
+owlready2
+requests
+flask-cors==3.0.10
+uuid
+datetime
+gunicorn
+flask-session
+redis

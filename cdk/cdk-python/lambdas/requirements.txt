@@ -3,8 +3,10 @@ rdflib
 owlready2
 requests
 flask-cors==3.0.10
-uuid
 datetime
 gunicorn
 flask-session
 redis
+aws-wsgi
+Flask-Session[dynamodb]
+mypy-boto3-dynamodb

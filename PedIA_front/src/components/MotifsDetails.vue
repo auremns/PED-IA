@@ -3,16 +3,16 @@
     <div class="left-side">
       <div class="upper-part">
         <header>
-      <nav>
-        <router-link to="/list">Liste des motifs d'appel</router-link>
-      </nav>
-      <button @click="startEncounter">Commencer la régulation</button>
-      <button @click="endEncounter">Fin de la régulation</button>
-    </header>
-    <h2>
-      <span class="static-text">Vous êtes dans le motif d'appel:</span>
-      <span class="dynamic-text">{{ classDetails.name }}</span>
-    </h2>
+          <nav>
+            <router-link to="/list">Liste des motifs d'appel</router-link>
+          </nav>
+          <button @click="startEncounter">Commencer la régulation</button>
+          <button @click="endEncounter">Fin de la régulation</button>
+        </header>
+        <h2>
+          <span class="static-text">Vous êtes dans le motif d'appel:</span>
+          <span class="dynamic-text">{{ classDetails.name }}</span>
+        </h2>
 
         <div class="subclasses">
           <h3>Sous-catégories:</h3>
@@ -57,7 +57,7 @@
     <div class="right-side">
       <div v-if="currentDecision" class="decision-box">
         Décision: {{ currentDecision }}
-        <br>
+        <br />
         {{ currentDecisionExplanation }}
       </div>
       <ClickedClasses />
@@ -65,14 +65,15 @@
   </div>
 </template>
 
-
 <script>
-import { ref, onMounted, inject, computed } from 'vue';
-import axios from 'axios';
-import ClassDetail from './ClassDetail.vue';
-import { useMainStore } from '@/stores/store'; 
-import ClickedClasses from './ClickedClasses.vue';
-const BACK_URL = "https://ped-ia-back-384d733bb8ae.herokuapp.com";
+import { ref, onMounted, inject, computed } from 'vue'
+//import axios from 'axios'
+//axios.defaults.withCredentials = true
+import ClassDetail from './ClassDetail.vue'
+import { useMainStore } from '@/stores/store';
+import ClickedClasses from './ClickedClasses.vue'
+const BACK_URL = 'https://d5ptpgq7oh.execute-api.eu-west-3.amazonaws.com/prod'
+
 
 export default {
   name: 'App',
@@ -82,114 +83,122 @@ export default {
   },
 
   props: ['motifs'],
-  
+
   setup(props) {
-    const mainStore = useMainStore();
-    const expandedClasses = inject('expandedClasses');
+    const mainStore = useMainStore()
+    const expandedClasses = inject('expandedClasses')
     const classDetails = ref({
       name: props.motifs,
       subclasses: [],
       relatedClasses: [],
       contextClasses: [],
       isExpanded: true
-    });
+    })
 
-    const currentDecision = computed(() => mainStore.currentDecision);
+    const currentDecision = computed(() => mainStore.currentDecision)
 
     const decisionExplanations = {
-      R1: "Envoyer un SMUR",
-      R2A: "Envoyer un VSAV",
-      R2B: "SAU par propres moyens ou ambulances",
-      R3: "Consultation médicale en ville",
-      R4: "Conseils téléphoniques"
-    };
+      R1: 'Envoyer un SMUR',
+      R2A: 'Envoyer un VSAV',
+      R2B: 'SAU par propres moyens ou ambulances',
+      R3: 'Consultation médicale en ville',
+      R4: 'Conseils téléphoniques'
+    }
 
     const currentDecisionExplanation = computed(() => {
-      return decisionExplanations[mainStore.currentDecision] || "";
-    });
-
-
+      return decisionExplanations[mainStore.currentDecision] || ''
+    })
 
     // Fetch initial details
-    onMounted(() => {
-      fetchInitialDetails();
-    });
-    const startEncounter = () => {
-      axios.get(BACK_URL + '/start_encounter')
-        .then(response => {
-          mainStore.setEncounterId(response.data.encounter_id);
-          console.log("Encounter started: " + response.data.encounter_id);
+    onMounted( async () => {
+      fetchInitialDetails()
+    })
+    const startEncounter = async () => {
+      await fetch(BACK_URL+'/start_encounter', {method:"GET", credentials: 'include'})
+        .then(async (response) => {
+          const res = await response.json().then((d) => {return d.encounter_id});
+          mainStore.setEncounterId(res)
+          console.log('Encounter started: ' + res)
         })
-        .catch(error => {
-          console.error("Error starting encounter: ", error);
-        });
-    };
-
-    const endEncounter = () => {
-      const currentEncounterId = mainStore.getEncounterId();
-      axios.post(BACK_URL + '/end_encounter', currentEncounterId)
-        .then(response => {
-          mainStore.clearEncounterId();
-          console.log("Encounter ended");
+        .catch((error) => {
+          console.error('Error starting encounter: ', error)
         })
-        .catch(error => {
-          console.error("Error ending encounter: ", error);
-        });
-    };
+    }
 
-    function fetchInitialDetails() {
-      const currentEncounterId = mainStore.getEncounterId();
-      axios.post(BACK_URL + `/get_subclasses?class_name=${classDetails.value.name}`, currentEncounterId)
-        .then(response => {
-          classDetails.value.subclasses = response.data.map(item => ({
-            name: item.name, 
-            subclasses: [],
-            relatedClasses: [],
-            contextClasses: [],
-            isExpanded: false 
-          }));
+    const endEncounter = async () => {
+      const currentEncounterId = mainStore.getEncounterId()
+      await fetch(BACK_URL+'/end_encounter', {method:"POST", credentials: 'include', body:JSON.stringify(currentEncounterId)})
+        .then(async (response) => {
+          mainStore.clearEncounterId()
+          console.log('Encounter ended')
         })
-        .catch(error => {
-          console.error('Error fetching subclasses:', error);
-        });
+        .catch((error) => {
+          console.error('Error ending encounter: ', error)
+        })
+    }
 
-      axios.post(BACK_URL + `/get_classes_after_faitRechercher?class_name=${classDetails.value.name}`, currentEncounterId)
-        .then(response => {
-          classDetails.value.relatedClasses = response.data.map(item => ({
+    async function fetchInitialDetails() {
+      const currentEncounterId = mainStore.getEncounterId()
+      await fetch(
+          BACK_URL + `/get_subclasses?class_name=${classDetails.value.name}`,
+          {method:"POST", credentials: 'include',
+          body:JSON.stringify(currentEncounterId)},
+        )
+        .then( async (response) => {
+          classDetails.value.subclasses = await response.json().then((d) => { return d.map((item) => ({
             name: item.name,
             subclasses: [],
             relatedClasses: [],
             contextClasses: [],
             isExpanded: false
-          }));
+          }))}
+        )
         })
-        .catch(error => {
-          console.error('Error fetching related classes:', error);
+        .catch((error) => {
+          console.error('Error fetching subclasses:', error)
         });
 
-        axios.post(BACK_URL + `/get_classes_after_aPourContexte?class_name=${classDetails.value.name}`, currentEncounterId)
-        .then(response => {
-          console.log("Response data:", response.data);
-          classDetails.value.contextClasses = response.data.map(item => ({
-              name: item.name,
-              relation: item.relation,
-              subclasses: [],
-              relatedClasses: [],
-              contextClasses: [],
-              isExpanded: false
-            }));
-          
+      await fetch(
+          BACK_URL + `/get_classes_after_faitRechercher?class_name=${classDetails.value.name}`,
+          {method:"POST", credentials: 'include',
+          body:JSON.stringify(currentEncounterId)},
+        )
+        .then(async (response) => {
+          classDetails.value.relatedClasses = await response.json().then((d) => { return d.map((item) => ({
+            name: item.name,
+            subclasses: [],
+            relatedClasses: [],
+            contextClasses: [],
+            isExpanded: false
+          }))})
         })
-        .catch(error => {
-          console.error('Error fetching context classes:', error);
-        });
+        .catch((error) => {
+          console.error('Error fetching related classes:', error)
+        })
 
+      await fetch(
+          BACK_URL + `/get_classes_after_aPourContexte?class_name=${classDetails.value.name}`,
+          {method:"POST", credentials: 'include',
+          body:JSON.stringify(currentEncounterId)},
+        )
+        .then(async (response) => {
+          classDetails.value.contextClasses = await response.json().then((d) => { return d.map((item) => ({
+            name: item.name,
+            relation: item.relation,
+            subclasses: [],
+            relatedClasses: [],
+            contextClasses: [],
+            isExpanded: false
+          }))})
+        })
+        .catch((error) => {
+          console.error('Error fetching context classes:', error)
+        })
     }
 
-
     async function handleUpdateDecision(decision) {
-      mainStore.setCurrentDecision(decision);
-      await mainStore.fetchAndSetDecision(); 
+      mainStore.setCurrentDecision(decision)
+      await mainStore.fetchAndSetDecision()
     }
 
     return {
@@ -199,32 +208,29 @@ export default {
       expandedClasses,
       currentDecision,
       currentDecisionExplanation,
-      handleUpdateDecision,
-    };
+      handleUpdateDecision
+    }
   }
-};
+}
 </script>
-
-
 
 <style scoped>
 header {
   background: #edf7ec;
   padding: 10px 20px;
-  
 }
 
 nav a {
   margin-right: 10px;
   margin-bottom: 30px;
-  text-decoration:overline;
+  text-decoration: overline;
   color: #475a42;
   white-space: nowrap;
 }
 .container {
   display: flex;
   height: 100vh;
-  width: 100vw; 
+  width: 100vw;
   gap: 10px;
 }
 
@@ -242,7 +248,7 @@ nav a {
   flex-grow: 1;
   flex-shrink: 1;
   padding: 20px;
-  background-color: ;
+  background-color:;
   color: black;
   border: 4px solid #b2d8b2;
   box-sizing: border-box;
@@ -251,16 +257,15 @@ nav a {
 }
 
 .static-text {
-  color: #475a42; 
-  font-weight:lighter; 
+  color: #475a42;
+  font-weight: lighter;
 }
 
 .dynamic-text {
-  color: #559661; 
-  font-weight: bold; 
-  margin-left: 10px; 
+  color: #559661;
+  font-weight: bold;
+  margin-left: 10px;
 }
-
 
 .lower-part {
   flex-grow: 1;
@@ -284,7 +289,7 @@ nav a {
   flex-direction: column;
   background-color: white;
   border-left: 1px solid #ccc;
-  box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
 }
 
 .decision-box {
@@ -293,7 +298,7 @@ nav a {
   background-color: white;
   color: red;
   border: 4px solid red;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
   align-items: center;
   justify-content: center;
@@ -301,10 +306,8 @@ nav a {
   margin: 10px;
 }
 
-
-
 button {
-  background-color: #9ac597; 
+  background-color: #9ac597;
   color: white;
   padding: 8px 16px;
   font-size: 10px;
@@ -316,7 +319,7 @@ button {
   margin-right: 10px;
 }
 button:last-child {
-  margin-right: 0; 
+  margin-right: 0;
 }
 
 button:hover {
@@ -329,5 +332,4 @@ button:active {
   transform: translateY(1px);
   box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
 }
-
 </style>

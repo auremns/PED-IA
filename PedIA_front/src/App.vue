@@ -11,7 +11,6 @@
 
 <script>
 import { provide, reactive, onBeforeMount, onMounted, computed } from 'vue';
-import axios from 'axios';
 import { useMainStore } from './stores/store.ts'; 
 import ClickedClasses from './components/ClickedClasses.vue';
 

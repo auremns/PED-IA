@@ -10,16 +10,25 @@
       </header>
       <div class="content">
         <main>
-          <router-view/>
+          <router-view />
           <div class="motif-appel-container">
             <div class="search-bar">
               <input type="text" v-model="searchQuery" placeholder="Rechercher un motif d'appel" />
             </div>
             <div class="subclass-list">
               <div class="columns">
-                <div class="column" v-for="(filteredSubclassList, index) in chunkedSubclasses" :key="index">
+                <div
+                  class="column"
+                  v-for="(filteredSubclassList, index) in chunkedSubclasses"
+                  :key="index"
+                >
                   <ul>
-                    <li v-for="subclass in filteredSubclassList" :key="subclass" class="subclass-item" @click="goToDetailPage(subclass)">
+                    <li
+                      v-for="subclass in filteredSubclassList"
+                      :key="subclass"
+                      class="subclass-item"
+                      @click="goToDetailPage(subclass)"
+                    >
                       {{ subclass }}
                     </li>
                   </ul>
@@ -36,71 +45,81 @@
   </div>
 </template>
 
-
 <script>
-import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
-import { useRouter } from 'vue-router';
-import { useMainStore } from '@/stores/store'; 
-const BACK_URL = "https://ped-ia-back-384d733bb8ae.herokuapp.com";
+import { ref, computed, onMounted } from 'vue'
+//import axios from 'axios'
+//this.$axios.defaults.withCredentials = true
+import { useRouter } from 'vue-router'
+import { useMainStore } from '@/stores/store';
+const BACK_URL = 'https://d5ptpgq7oh.execute-api.eu-west-3.amazonaws.com/prod'
 
-export default {
+
+export default  {
   name: 'MotifsListe',
 
   setup() {
-    const subclasses = ref([]);
-    const searchQuery = ref('');
-    const router = useRouter();  
-    const store = useMainStore();
+    const subclasses = ref([])
+    const searchQuery = ref('')
+    const router = useRouter()
+    const store = useMainStore()
     const filteredSubclasses = computed(() => {
-      return subclasses.value.filter(subclass =>
+      return subclasses.value.filter((subclass) =>
         subclass.toLowerCase().includes(searchQuery.value.toLowerCase())
-      );
-    });
+      )
+    })
 
     const chunkedSubclasses = computed(() => {
-      const perColumn = Math.ceil(filteredSubclasses.value.length / 3);
+      const perColumn = Math.ceil(filteredSubclasses.value.length / 3)
       return new Array(3).fill().map((_, i) => {
-        return filteredSubclasses.value.slice(i * perColumn, (i + 1) * perColumn);
-      });
-    });
+        return filteredSubclasses.value.slice(i * perColumn, (i + 1) * perColumn)
+      })
+    })
 
     onMounted(async () => {
-      try {
-        const response = await axios.get(BACK_URL + '/get_motives');
-        subclasses.value = response.data;
-      } catch (error) {
-        console.error('There was an issue fetching the subclasses:', error);
-        subclasses.value = [];
-      }
-    });
 
-    const startEncounter = () => {
-      axios.get(BACK_URL + '/start_encounter')
-        .then(response => {
-          store.setEncounterId(response.data.encounter_id);
-          console.log("Encounter started: " + response.data.encounter_id);
+      await fetch(BACK_URL+'/get_motives', {method:"GET", credentials: 'include'}).then(
+          async (response) => {
+            const res = await response.json().then(
+              (data) => {
+                console.log(data);
+                return data
+              }
+            )
+            subclasses.value = res
+          }
+        ).catch((error) => {
+          console.error('Error fetching subclasses:', error)
+          subclasses.value = []
         })
-        .catch(error => {
-          console.error("Error starting encounter: ", error);
-        });
-    };
+    })
 
-    const endEncounter = () => {
-      const currentEncounterId = mainStore.getEncounterId();
-      axios.post(BACK_URL + '/end_encounter', currentEncounterId)
-        .then(response => {
-          store.clearEncounterId();
-          console.log("Encounter ended");
+    const startEncounter = async () => {
+      await fetch(BACK_URL+'/start_encounter', {method:"GET", credentials: 'include'})
+        .then(async (response) => {
+          const res = await response.json().then((d) => {console.log(d); return d.encounter_id})
+          store.setEncounterId(res)
+          console.log('Encounter started: ' + res)
         })
-        .catch(error => {
-          console.error("Error ending encounter: ", error);
-        });
-    };
+        .catch((error) => {
+          console.error('Error starting encounter: ', error)
+        })
+    }
+
+    const endEncounter = async () => {
+      const currentEncounterId = mainStore.getEncounterId()
+      await fetch(BACK_URL+'/end_encounter', {method:"POST", credentials: 'include', body:JSON.stringify(currentEncounterId)})
+        .then(async (response) => {
+          store.clearEncounterId()
+          console.log('Encounter ended')
+        })
+        .catch((error) => {
+          console.error('Error ending encounter: ', error)
+        })
+    }
 
     const goToDetailPage = (subclass) => {
-      router.push({ name: 'motivesDetail', params: { motifs: subclass } });
-    };
+      router.push({ name: 'motivesDetail', params: { motifs: subclass } })
+    }
 
     return {
       startEncounter,
@@ -108,18 +127,17 @@ export default {
       searchQuery,
       chunkedSubclasses,
       goToDetailPage
-    };
+    }
   }
-};
+}
 </script>
 
 <style scoped>
-
 header {
-  background: #edf7ec; 
-  padding: 10px 20px; 
+  background: #edf7ec;
+  padding: 10px 20px;
   display: flex;
-  align-items:baseline;
+  align-items: baseline;
   display: flex;
   flex-direction: column;
 }
@@ -127,7 +145,7 @@ header {
 nav a {
   margin-right: 10px;
   margin-bottom: 30px;
-  text-decoration:overline;
+  text-decoration: overline;
   color: #475a42;
   white-space: nowrap;
 }
@@ -180,7 +198,7 @@ nav a {
 }
 
 button {
-  background-color: #9ac597; 
+  background-color: #9ac597;
   color: white;
   padding: 8px 16px;
   font-size: 10px;
@@ -193,7 +211,7 @@ button {
   margin-top: 10px;
 }
 button:last-child {
-  margin-right: 0; 
+  margin-right: 0;
 }
 
 button:hover {

@@ -45,113 +45,132 @@
 </template>
 
 <script>
-import { ref, inject, computed } from 'vue';
-import axios from 'axios';
+import { ref, inject, computed } from 'vue'
+// import axios from 'axios'
+//axios.defaults.withCredentials = true
 import { useMainStore } from '@/stores/store';
-const BACK_URL = "https://ped-ia-back-384d733bb8ae.herokuapp.com";
+const BACK_URL = 'https://d5ptpgq7oh.execute-api.eu-west-3.amazonaws.com/prod'
+
 
 export default {
   props: ['classDetail'],
   emits: ['updateDecision'],
   setup(props, { emit }) {
-    const mainStore = useMainStore();
-    const expandedClasses = inject('expandedClasses');
-    const classDetail = ref(props.classDetail);
+    const mainStore = useMainStore()
+    const expandedClasses = inject('expandedClasses')
+    const classDetail = ref(props.classDetail)
 
-
-    const toggleExpand = () => {
-      classDetail.value.isExpanded = !classDetail.value.isExpanded;
+    const toggleExpand = async () => {
+      classDetail.value.isExpanded = !classDetail.value.isExpanded
       if (classDetail.value.isExpanded) {
-        expandedClasses.add(classDetail.value.name);
-        addClassToSession(classDetail.value.name).then(() => {
-          mainStore.fetchClickedClasses();
-        });
-        fetchDetails();
-        fetchDecision(); 
-
+        expandedClasses.add(classDetail.value.name)
+        await addClassToSession(classDetail.value.name).then(async () => {
+          await mainStore.fetchClickedClasses()
+        }).then(async () => {
+          await fetchDetails()
+        }).then(async () => {
+          await fetchDecision()
+        })
+        
       } else {
-        removeDisplayedClass(classDetail.value.name);
-
+        removeDisplayedClass(classDetail.value.name)
       }
-    };
+    }
 
     const addClassToSession = async (className) => {
-      try {
-        const currentEncounterId = mainStore.getEncounterId();
-        await axios.post(BACK_URL + `/push_class_to_session?class_name=${className}`, currentEncounterId);
-      } catch (error) {
-        console.error('Error adding class to session:', error);
-      }
-    };
+        const currentEncounterId = mainStore.getEncounterId()
+        await fetch(
+          BACK_URL + `/push_class_to_session?class_name=${className}`,
+          {method:"POST", credentials: 'include', body:JSON.stringify(currentEncounterId)}
+        ).catch((error) => {
+          console.error('Error removing displayed class:', error)
+        })
+    }
 
     const removeDisplayedClass = async (className) => {
-      try {
-        const currentEncounterId = mainStore.getEncounterId();
-        await axios.post(BACK_URL + '/remove_displayed_class', {
-          class_name: className, 
-          encounter_id: currentEncounterId.encounter_id
-        });
-      } catch (error) {
-        console.error('Error removing class from session:', error);
-      }
-    };
 
-    const fetchDetails = () => {
-      const { name } = classDetail.value;
-      const currentEncounterId = mainStore.getEncounterId();
-      const fetchSubclasses = axios.post(BACK_URL + `/get_subclasses?class_name=${name}`, currentEncounterId);
-      const fetchRelatedClasses = axios.post(BACK_URL + `/get_classes_after_faitRechercher?class_name=${name}`, currentEncounterId);
-      const fetchContextClasses = axios.post(BACK_URL + `/get_classes_after_aPourContexte?class_name=${name}`, currentEncounterId);
+        const currentEncounterId = mainStore.getEncounterId()
+        await fetch(
+          BACK_URL+'/remove_displayed_class', 
+          {
+            method:"POST", credentials: 'include',
+          body: JSON.stringify({
+            class_name: className,
+            encounter_id: currentEncounterId.encounter_id
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }}
+        ).catch((error) => {
+          console.error('Error removing displayed class:', error)
+        })
+
+    }
+
+    const fetchDetails = async () => {
+      const { name } = classDetail.value
+      const currentEncounterId = mainStore.getEncounterId()
+      const fetchSubclasses = fetch(
+        BACK_URL + `/get_subclasses?class_name=${name}`,
+        {method:"POST", credentials: 'include', body: JSON.stringify(currentEncounterId)}
+      )
+      const fetchRelatedClasses = fetch(
+        BACK_URL + `/get_classes_after_faitRechercher?class_name=${name}`,
+        {method:"POST", credentials: 'include', body: JSON.stringify(currentEncounterId)}
+      )
+      const fetchContextClasses = fetch(
+        BACK_URL + `/get_classes_after_aPourContexte?class_name=${name}`,
+        {method:"POST", credentials: 'include', body: JSON.stringify(currentEncounterId)}
+      )
       Promise.all([fetchSubclasses, fetchRelatedClasses, fetchContextClasses])
         .then(([subclassesRes, relatedClassesRes, contextClassesRes]) => {
-          processDetails(subclassesRes, relatedClassesRes, contextClassesRes);
+          processDetails(subclassesRes, relatedClassesRes, contextClassesRes)
         })
-        .catch(error => {
-          console.error('Error fetching details:', error);
-        });
-    };
+        .catch((error) => {
+          console.error('Error fetching details:', error)
+        })
+    }
 
-    const processDetails = (subclassesRes, relatedClassesRes, contextClassesRes) => {
-      classDetail.value.subclasses = subclassesRes.data.map(item => ({
+    const processDetails = async (subclassesRes, relatedClassesRes, contextClassesRes) => {
+      classDetail.value.subclasses = await subclassesRes.json().then((d) => { return d.map((item) => ({
         name: item.name,
         subclasses: [],
         relatedClasses: [],
         contextClasses: [],
         isExpanded: false
-      }));
-      classDetail.value.relatedClasses = relatedClassesRes.data.map(item => ({
+      }))})
+      classDetail.value.relatedClasses = await relatedClassesRes.json().then((d) => { return d.map((item) => ({
         name: item.name,
         subclasses: [],
         relatedClasses: [],
         contextClasses: [],
         isExpanded: false
-      }));
-      classDetail.value.contextClasses = contextClassesRes.data.map(item => ({
+      }))})
+      classDetail.value.contextClasses = await contextClassesRes.json().then((d) => { return d.map((item) => ({
         name: item.name,
         relation: item.relation,
         subclasses: [],
         relatedClasses: [],
         contextClasses: [],
         isExpanded: false
-      }));
-      
-      fetchDecision();
-    };
+      }))});
 
-
-    const flattenContextClasses = computed(() => {
-      return classDetail.value.contextClasses.reduce((acc, group) => [...acc, ...group], []);
-    });
-
-    const fetchDecision = () => {
-      mainStore.fetchAndSetDecision(classDetail.value.name);
-    };
-
-    async function handleUpdateDecision(decision) {
-      mainStore.setCurrentDecision(decision);
-      await mainStore.fetchAndSetDecision(); 
+      fetchDecision()
     }
 
+    const flattenContextClasses = computed(() => {
+      return classDetail.value.contextClasses.reduce((acc, group) => [...acc, ...group], [])
+    })
+
+    const fetchDecision = () => {
+      mainStore.fetchAndSetDecision(classDetail.value.name)
+    }
+
+    async function handleUpdateDecision(decision) {
+      mainStore.setCurrentDecision(decision)
+      await mainStore.fetchAndSetDecision()
+    }
 
     return {
       classDetail,
@@ -159,10 +178,10 @@ export default {
       toggleExpand,
       flattenContextClasses,
       expandedClasses,
-      handleUpdateDecision,
-    };
+      handleUpdateDecision
+    }
   }
-};
+}
 </script>
 
 <style scoped>
@@ -192,18 +211,16 @@ button:hover {
 }
 
 .expanded-content {
-  padding-left: 20px; 
+  padding-left: 20px;
 }
 
 .decision-box {
-  position: fixed; 
+  position: fixed;
   bottom: 20px;
   right: 20px;
   padding: 10px;
   background-color: #f8f9fa;
   border: 1px solid #ccc;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-
-
 </style>
